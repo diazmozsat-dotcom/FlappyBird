@@ -1,938 +1,764 @@
-```html
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-  <title>3D Minecraft Web Clone</title>
-  
-  <!-- Tailwind CSS CDN -->
-  <script src="https://cdn.tailwindcss.com"></script>
-  <!-- Minecraft Font -->
-  <link href="https://fonts.googleapis.com/css2?family=VT323&display=swap" rel="stylesheet">
-  <!-- Three.js CDN -->
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
-
-  <style>
-    * {
-      user-select: none;
-      -webkit-user-select: none;
-      touch-action: none;
-    }
-    body {
-      font-family: 'VT323', monospace;
-      background-color: #000;
-      margin: 0;
-      overflow: hidden;
-    }
-    canvas {
-      display: block;
-      width: 100vw;
-      height: 100vh;
-    }
-    /* Crosshair */
-    #crosshair {
-      position: absolute;
-      top: 50%;
-      left: 50%;
-      width: 16px;
-      height: 16px;
-      transform: translate(-50%, -50%);
-      pointer-events: none;
-      z-index: 20;
-    }
-    #crosshair::before, #crosshair::after {
-      content: '';
-      position: absolute;
-      background-color: rgba(255, 255, 255, 0.8);
-      box-shadow: 0 0 2px rgba(0,0,0,0.8);
-    }
-    #crosshair::before {
-      top: 7px;
-      left: 0;
-      width: 16px;
-      height: 2px;
-    }
-    #crosshair::after {
-      top: 0;
-      left: 7px;
-      width: 2px;
-      height: 16px;
-    }
-
-    /* Hotbar Style */
-    .mc-slot {
-      background: #8b8b8b;
-      border: 4px solid #373737;
-      border-right-color: #fff;
-      border-bottom-color: #fff;
-    }
-    .mc-slot.active {
-      border: 4px solid #facc15 !important;
-      background: #a3a3a3;
-      transform: scale(1.08);
-    }
-    
-    .mc-btn {
-      background: #737373;
-      border: 3px solid #373737;
-      border-right-color: #525252;
-      border-bottom-color: #525252;
-      box-shadow: inset -2px -2px 0px #262626, inset 2px 2px 0px #a3a3a3;
-    }
-    .mc-btn:active {
-      box-shadow: inset 2px 2px 0px #262626, inset -2px -2px 0px #a3a3a3;
-    }
-
-    /* Virtual Joystick */
-    #joystick-container {
-      touch-action: none;
-    }
-  </style>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Flappy Bird Deluxe</title>
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Google Fonts with fallbacks -->
+    <link href="https://fonts.googleapis.com/css2?family=Fredoka+One&family=Nunito:wght@700;800;900&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Fredoka One', 'Nunito', system-ui, -apple-system, sans-serif;
+            user-select: none;
+            -webkit-user-select: none;
+            touch-action: manipulation;
+        }
+    </style>
 </head>
-<body class="select-none overflow-hidden">
+<body class="bg-slate-900 min-h-screen flex items-center justify-center p-0 m-0 overflow-hidden w-screen h-screen">
 
-  <!-- Crosshair -->
-  <div id="crosshair"></div>
+    <!-- Game Container -->
+    <div id="gameContainer" class="relative w-full h-full bg-slate-900 overflow-hidden flex items-center justify-center">
+        
+        <!-- Canvas Element -->
+        <canvas id="gameCanvas" width="400" height="600" class="block cursor-pointer select-none touch-none shadow-2xl rounded-lg"></canvas>
 
-  <!-- HUD Overlay Header -->
-  <div class="absolute top-4 left-4 z-20 flex flex-col gap-1 text-white text-lg drop-shadow-[0_2px_2px_rgba(0,0,0,0.9)]">
-    <div class="flex items-center gap-2">
-      <span class="text-amber-400 font-bold tracking-wider text-xl">MINECRAFT 3D</span>
-      <span id="fps-counter" class="text-xs font-mono bg-black/50 px-2 py-0.5 rounded text-emerald-400">60 FPS</span>
-    </div>
-    <div class="text-xs text-slate-300 font-mono">Pos: <span id="pos-display">X: 0, Y: 0, Z: 0</span></div>
-  </div>
+        <!-- UI Overlay: Top Right Control Buttons -->
+        <div class="absolute top-4 right-4 flex items-center space-x-3 z-20">
+            <!-- Fullscreen Toggle Button -->
+            <button id="fullscreenToggle" aria-label="Toggle Fullscreen" class="bg-slate-900/70 hover:bg-slate-800 text-white p-3 rounded-full backdrop-blur-md transition-all duration-200 shadow-xl active:scale-95 border border-white/20">
+                <svg id="fsIconExpand" class="w-6 h-6 fill-current text-sky-400" viewBox="0 0 24 24">
+                    <path d="M7 14H5v5h5v-2H7v-3zm-2-4h2V7h3V5H5v5zm12 7h-3v2h5v-5h-2v3zM14 5v2h3v3h2V5h-5z"/>
+                </svg>
+                <svg id="fsIconCompress" class="w-6 h-6 fill-current text-sky-400 hidden" viewBox="0 0 24 24">
+                    <path d="M5 16h3v3h2v-5H5v2zm3-8H5v2h5V5H8v3zm6 11h2v-3h3v-2h-5v5zm2-11V5h-2v5h5V8h-3z"/>
+                </svg>
+            </button>
 
-  <!-- START / PAUSE OVERLAY -->
-  <div id="start-overlay" class="absolute inset-0 bg-black/75 backdrop-blur-sm z-40 flex flex-col items-center justify-center p-6 text-center text-white">
-    <div class="max-w-md w-full bg-[#1e1e1e] border-4 border-[#3c3c3c] p-6 shadow-2xl rounded-none space-y-6">
-      <h1 class="text-5xl text-yellow-400 tracking-widest drop-shadow-[0_4px_0_#373737]">MINECRAFT</h1>
-      <p class="text-slate-300 text-lg">WEB 3D EDITION</p>
-
-      <div class="bg-[#121212] p-4 border-2 border-[#3c3c3c] text-left text-sm space-y-2 font-mono text-slate-300">
-        <p class="text-amber-400 font-bold mb-1">DESKTOP CONTROLS:</p>
-        <p>• <span class="text-white font-bold">WASD</span> : Walk / Move</p>
-        <p>• <span class="text-white font-bold">SPACE</span> : Jump</p>
-        <p>• <span class="text-white font-bold">SHIFT</span> : Sprint</p>
-        <p>• <span class="text-white font-bold">LEFT CLICK</span> : Break / Mine Block</p>
-        <p>• <span class="text-white font-bold">RIGHT CLICK</span> : Place Selected Block</p>
-        <p>• <span class="text-white font-bold">KEYS 1-6 / SCROLL</span> : Select Hotbar Slot</p>
-      </div>
-
-      <button id="play-btn" class="mc-btn w-full py-4 text-2xl font-bold text-white uppercase tracking-wider hover:bg-[#8b8b8b] active:translate-y-0.5 transition">
-        CLICK TO PLAY
-      </button>
-
-      <p class="text-xs text-slate-400 italic">Supports Touch controls on Mobile devices</p>
-    </div>
-  </div>
-
-  <!-- MOBILE TOUCH CONTROLS (AUTO SHOW ON TOUCH) -->
-  <div id="mobile-controls" class="hidden absolute inset-0 z-30 pointer-events-none">
-    <!-- Joystick Left -->
-    <div id="joystick-zone" class="absolute bottom-8 left-8 w-32 h-32 bg-black/30 border-2 border-white/20 rounded-full pointer-events-auto flex items-center justify-center">
-      <div id="joystick-knob" class="w-12 h-12 bg-white/50 rounded-full"></div>
+            <!-- Sound Toggle Button -->
+            <button id="soundToggle" aria-label="Toggle Sound" class="bg-slate-900/70 hover:bg-slate-800 text-white p-3 rounded-full backdrop-blur-md transition-all duration-200 shadow-xl active:scale-95 border border-white/20">
+                <svg id="soundIconOn" class="w-6 h-6 fill-current text-yellow-400" viewBox="0 0 24 24">
+                    <path d="M3 9v6h4l5 5V4L7 9H3zm13.5 3c0-1.77-1.02-3.29-2.5-4.03v8.05c1.48-.73 2.5-2.25 2.5-4.02zM14 3.23v2.06c2.89.86 5 3.54 5 6.71s-2.11 5.85-5 6.71v2.06c4.01-.91 7-4.49 7-8.77s-2.99-7.86-7-8.77z"/>
+                </svg>
+                <svg id="soundIconOff" class="w-6 h-6 fill-current text-slate-400 hidden" viewBox="0 0 24 24">
+                    <path d="M16.5 12c0-1.77-1.02-3.29-2.5-4.03v2.21l2.45 2.45c.03-.2.05-.41.05-.63zm2.5 0c0 .94-.2 1.82-.54 2.64l1.51 1.51C20.63 14.91 21 13.5 21 12c0-4.28-2.99-7.86-7-8.77v2.06c1.38-.31 2.63-.95 3.69-1.81L19.73 21 21 19.73l-9-9L4.27 3zM12 4L9.91 6.09 12 8.18V4z"/>
+                </svg>
+            </button>
+        </div>
     </div>
 
-    <!-- Action Buttons Right -->
-    <div class="absolute bottom-8 right-8 flex flex-col gap-3 pointer-events-auto">
-      <div class="flex gap-3">
-        <button id="btn-mine" class="w-16 h-16 mc-btn rounded-xl text-white font-bold text-xl flex items-center justify-center active:bg-rose-700 bg-rose-600/80">
-          ⛏️
-        </button>
-        <button id="btn-place" class="w-16 h-16 mc-btn rounded-xl text-white font-bold text-xl flex items-center justify-center active:bg-emerald-700 bg-emerald-600/80">
-          🧱
-        </button>
-      </div>
-      <button id="btn-jump" class="w-full h-14 mc-btn rounded-xl text-white font-bold text-lg flex items-center justify-center active:bg-amber-700 bg-amber-600/80">
-        JUMP
-      </button>
-    </div>
-  </div>
-
-  <!-- HOTBAR UI (BOTTOM) -->
-  <div class="absolute bottom-4 left-1/2 -translate-x-1/2 z-20 flex items-center gap-1.5 p-2 bg-black/60 border-2 border-[#3c3c3c] rounded-lg">
-    <div data-slot="0" class="mc-slot active w-12 h-12 sm:w-14 sm:h-14 flex items-center justify-center relative cursor-pointer">
-      <canvas id="icon-0" class="w-8 h-8 sm:w-10 sm:h-10"></canvas>
-      <span class="absolute top-0.5 left-1 text-xs text-white drop-shadow font-bold">1</span>
-    </div>
-    <div data-slot="1" class="mc-slot w-12 h-12 sm:w-14 sm:h-14 flex items-center justify-center relative cursor-pointer">
-      <canvas id="icon-1" class="w-8 h-8 sm:w-10 sm:h-10"></canvas>
-      <span class="absolute top-0.5 left-1 text-xs text-white drop-shadow font-bold">2</span>
-    </div>
-    <div data-slot="2" class="mc-slot w-12 h-12 sm:w-14 sm:h-14 flex items-center justify-center relative cursor-pointer">
-      <canvas id="icon-2" class="w-8 h-8 sm:w-10 sm:h-10"></canvas>
-      <span class="absolute top-0.5 left-1 text-xs text-white drop-shadow font-bold">3</span>
-    </div>
-    <div data-slot="3" class="mc-slot w-12 h-12 sm:w-14 sm:h-14 flex items-center justify-center relative cursor-pointer">
-      <canvas id="icon-3" class="w-8 h-8 sm:w-10 sm:h-10"></canvas>
-      <span class="absolute top-0.5 left-1 text-xs text-white drop-shadow font-bold">4</span>
-    </div>
-    <div data-slot="4" class="mc-slot w-12 h-12 sm:w-14 sm:h-14 flex items-center justify-center relative cursor-pointer">
-      <canvas id="icon-4" class="w-8 h-8 sm:w-10 sm:h-10"></canvas>
-      <span class="absolute top-0.5 left-1 text-xs text-white drop-shadow font-bold">5</span>
-    </div>
-    <div data-slot="5" class="mc-slot w-12 h-12 sm:w-14 sm:h-14 flex items-center justify-center relative cursor-pointer">
-      <canvas id="icon-5" class="w-8 h-8 sm:w-10 sm:h-10"></canvas>
-      <span class="absolute top-0.5 left-1 text-xs text-white drop-shadow font-bold">6</span>
-    </div>
-  </div>
-
-  <script>
-    // --- SYNTHESIZED WEB AUDIO SOUND GENERATOR ---
-    class SoundEngine {
-      constructor() {
-        this.ctx = null;
-      }
-      init() {
-        if (!this.ctx) {
-          const AudioContext = window.AudioContext || window.webkitAudioContext;
-          if (AudioContext) this.ctx = new AudioContext();
-        }
-        if (this.ctx && this.ctx.state === 'suspended') {
-          this.ctx.resume();
-        }
-      }
-      playStep() {
-        if (!this.ctx) return;
-        const osc = this.ctx.createOscillator();
-        const gain = this.ctx.createGain();
-        osc.type = 'triangle';
-        osc.frequency.setValueAtTime(120 + Math.random() * 40, this.ctx.currentTime);
-        osc.frequency.exponentialRampToValueAtTime(30, this.ctx.currentTime + 0.08);
-        gain.gain.setValueAtTime(0.08, this.ctx.currentTime);
-        gain.gain.linearRampToValueAtTime(0.01, this.ctx.currentTime + 0.08);
-        osc.connect(gain);
-        gain.connect(this.ctx.destination);
-        osc.start();
-        osc.stop(this.ctx.currentTime + 0.08);
-      }
-      playBreak() {
-        if (!this.ctx) return;
-        const bufferSize = this.ctx.sampleRate * 0.12;
-        const buffer = this.ctx.createBuffer(1, bufferSize, this.ctx.sampleRate);
-        const data = buffer.getChannelData(0);
-        for (let i = 0; i < bufferSize; i++) {
-          data[i] = (Math.random() * 2 - 1) * Math.exp(-i / (bufferSize * 0.3));
-        }
-        const noise = this.ctx.createBufferSource();
-        noise.buffer = buffer;
-        const filter = this.ctx.createBiquadFilter();
-        filter.type = 'lowpass';
-        filter.frequency.value = 800;
-        const gain = this.ctx.createGain();
-        gain.gain.setValueAtTime(0.25, this.ctx.currentTime);
-        noise.connect(filter);
-        filter.connect(gain);
-        gain.connect(this.ctx.destination);
-        noise.start();
-      }
-      playPlace() {
-        if (!this.ctx) return;
-        const osc = this.ctx.createOscillator();
-        const gain = this.ctx.createGain();
-        osc.type = 'sine';
-        osc.frequency.setValueAtTime(180, this.ctx.currentTime);
-        osc.frequency.exponentialRampToValueAtTime(80, this.ctx.currentTime + 0.09);
-        gain.gain.setValueAtTime(0.2, this.ctx.currentTime);
-        gain.gain.linearRampToValueAtTime(0.01, this.ctx.currentTime + 0.09);
-        osc.connect(gain);
-        gain.connect(this.ctx.destination);
-        osc.start();
-        osc.stop(this.ctx.currentTime + 0.09);
-      }
-    }
-    const audio = new SoundEngine();
-
-    // --- PROCEDURAL 16x16 TEXTURE GENERATOR ---
-    function generateVoxelTexture(type) {
-      const canvas = document.createElement('canvas');
-      canvas.width = 16;
-      canvas.height = 16;
-      const ctx = canvas.getContext('2d');
-
-      const noise = (baseR, baseG, baseB, variance) => {
-        for (let x = 0; x < 16; x++) {
-          for (let y = 0; y < 16; y++) {
-            const factor = (Math.random() - 0.5) * variance;
-            const r = Math.min(255, Math.max(0, Math.floor(baseR + factor)));
-            const g = Math.min(255, Math.max(0, Math.floor(baseG + factor)));
-            const b = Math.min(255, Math.max(0, Math.floor(baseB + factor)));
-            ctx.fillStyle = `rgb(${r},${g},${b})`;
-            ctx.fillRect(x, y, 1, 1);
-          }
-        }
-      };
-
-      if (type === 'grass_top') {
-        noise(90, 160, 50, 40);
-      } else if (type === 'grass_side') {
-        noise(120, 85, 50, 30); // Dirt base
-        ctx.fillStyle = '#55a032';
-        for (let x = 0; x < 16; x++) {
-          const grassHeight = 3 + Math.floor(Math.random() * 3);
-          ctx.fillRect(x, 0, 1, grassHeight);
-        }
-      } else if (type === 'dirt') {
-        noise(120, 85, 50, 35);
-      } else if (type === 'stone') {
-        noise(128, 128, 128, 40);
-      } else if (type === 'wood_side') {
-        noise(140, 95, 45, 20);
-        ctx.fillStyle = 'rgba(60,40,20,0.4)';
-        for (let y = 0; y < 16; y += 4) {
-          ctx.fillRect(0, y, 16, 1);
-        }
-      } else if (type === 'wood_top') {
-        noise(160, 115, 60, 25);
-        ctx.fillStyle = 'rgba(90,60,30,0.5)';
-        ctx.strokeRect(3, 3, 10, 10);
-      } else if (type === 'leaves') {
-        noise(45, 125, 35, 50);
-      } else if (type === 'brick') {
-        noise(160, 70, 55, 25);
-        ctx.fillStyle = '#d4d4d4';
-        for (let y = 3; y < 16; y += 4) ctx.fillRect(0, y, 16, 1);
-        for (let x = 0; x < 16; x += 8) {
-          ctx.fillRect(x, 0, 1, 4);
-          ctx.fillRect((x + 4) % 16, 4, 1, 4);
-          ctx.fillRect(x, 8, 1, 4);
-          ctx.fillRect((x + 4) % 16, 12, 1, 4);
-        }
-      }
-
-      const texture = new THREE.CanvasTexture(canvas);
-      texture.magFilter = THREE.NearestFilter;
-      texture.minFilter = THREE.NearestFilter;
-      return { texture, canvas };
-    }
-
-    // --- BLOCK TYPES DEFINITION ---
-    const BLOCKS = [
-      { id: 1, name: 'Grass', side: 'grass_side', top: 'grass_top', bottom: 'dirt' },
-      { id: 2, name: 'Dirt', side: 'dirt', top: 'dirt', bottom: 'dirt' },
-      { id: 3, name: 'Stone', side: 'stone', top: 'stone', bottom: 'stone' },
-      { id: 4, name: 'Wood', side: 'wood_side', top: 'wood_top', bottom: 'wood_top' },
-      { id: 5, name: 'Leaves', side: 'leaves', top: 'leaves', bottom: 'leaves' },
-      { id: 6, name: 'Brick', side: 'brick', top: 'brick', bottom: 'brick' },
-    ];
-
-    const textureCache = {};
-    const blockMaterials = {};
-
-    BLOCKS.forEach(b => {
-      ['side', 'top', 'bottom'].forEach(face => {
-        const texName = b[face];
-        if (!textureCache[texName]) {
-          textureCache[texName] = generateVoxelTexture(texName);
-        }
-      });
-
-      blockMaterials[b.id] = [
-        new THREE.MeshLambertMaterial({ map: textureCache[b.side].texture }),
-        new THREE.MeshLambertMaterial({ map: textureCache[b.side].texture }),
-        new THREE.MeshLambertMaterial({ map: textureCache[b.top].texture }),
-        new THREE.MeshLambertMaterial({ map: textureCache[b.bottom].texture }),
-        new THREE.MeshLambertMaterial({ map: textureCache[b.side].texture }),
-        new THREE.MeshLambertMaterial({ map: textureCache[b.side].texture }),
-      ];
-    });
-
-    // Draw Hotbar Icons
-    BLOCKS.forEach((b, idx) => {
-      const iconCanvas = document.getElementById(`icon-${idx}`);
-      const ctx = iconCanvas.getContext('2d');
-      iconCanvas.width = 32;
-      iconCanvas.height = 32;
-      ctx.imageSmoothingEnabled = false;
-      ctx.drawImage(textureCache[b.top].canvas, 0, 0, 32, 32);
-    });
-
-    // --- THREE.JS SCENE SETUP ---
-    const scene = new THREE.Scene();
-    scene.background = new THREE.Color(0x70b5ff);
-    scene.fog = new THREE.FogExp2(0x70b5ff, 0.018);
-
-    const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
-    const renderer = new THREE.WebGLRenderer({ antialias: false, powerPreference: "high-performance" });
-    renderer.setSize(window.innerWidth, window.innerHeight);
-    renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
-    renderer.shadowMap.enabled = true;
-    renderer.shadowMap.type = THREE.PCFSoftShadowMap;
-    document.body.appendChild(renderer.domElement);
-
-    // Lights
-    const ambientLight = new THREE.AmbientLight(0xffffff, 0.45);
-    scene.add(ambientLight);
-
-    const dirLight = new THREE.DirectionalLight(0xffffff, 0.75);
-    dirLight.position.set(50, 100, 50);
-    dirLight.castShadow = true;
-    dirLight.shadow.mapSize.width = 1024;
-    dirLight.shadow.mapSize.height = 1024;
-    dirLight.shadow.camera.near = 0.5;
-    dirLight.shadow.camera.far = 200;
-    const shadowD = 40;
-    dirLight.shadow.camera.left = -shadowD;
-    dirLight.shadow.camera.right = shadowD;
-    dirLight.shadow.camera.top = shadowD;
-    dirLight.shadow.camera.bottom = -shadowD;
-    scene.add(dirLight);
-
-    // Shared Box Geometry
-    const blockGeometry = new THREE.BoxGeometry(1, 1, 1);
-
-    // --- VOXEL WORLD MANAGEMENT ---
-    const worldBlocks = new Map(); // Key "x,y,z" => { mesh, id }
-
-    function getBlockKey(x, y, z) {
-      return `${Math.floor(x)},${Math.floor(y)},${Math.floor(z)}`;
-    }
-
-    function addBlock(x, y, z, blockId, playSound = false) {
-      const key = getBlockKey(x, y, z);
-      if (worldBlocks.has(key)) return;
-
-      const mesh = new THREE.Mesh(blockGeometry, blockMaterials[blockId]);
-      mesh.position.set(x + 0.5, y + 0.5, z + 0.5);
-      mesh.castShadow = true;
-      mesh.receiveShadow = true;
-      scene.add(mesh);
-
-      worldBlocks.set(key, { mesh, id: blockId, x, y, z });
-
-      if (playSound) audio.playPlace();
-    }
-
-    function removeBlock(x, y, z) {
-      const key = getBlockKey(x, y, z);
-      const data = worldBlocks.get(key);
-      if (data) {
-        scene.remove(data.mesh);
-        data.mesh.geometry.dispose();
-        worldBlocks.delete(key);
-        audio.playBreak();
-        spawnBreakParticles(x + 0.5, y + 0.5, z + 0.5, data.id);
-      }
-    }
-
-    // Break Particle System
-    function spawnBreakParticles(x, y, z, blockId) {
-      const particleCount = 12;
-      const geom = new THREE.BoxGeometry(0.12, 0.12, 0.12);
-      const mat = blockMaterials[blockId][0];
-
-      for (let i = 0; i < particleCount; i++) {
-        const p = new THREE.Mesh(geom, mat);
-        p.position.set(x, y, z);
-        scene.add(p);
-
-        const velocity = new THREE.Vector3(
-          (Math.random() - 0.5) * 4,
-          Math.random() * 4 + 1,
-          (Math.random() - 0.5) * 4
-        );
-
-        let ticks = 0;
-        const pInterval = setInterval(() => {
-          ticks++;
-          velocity.y -= 0.25; // gravity
-          p.position.addScaledVector(velocity, 0.016);
-          p.scale.multiplyScalar(0.95);
-
-          if (ticks > 25) {
-            clearInterval(pInterval);
-            scene.remove(p);
-            p.geometry.dispose();
-          }
-        }, 16);
-      }
-    }
-
-    // --- PROCEDURAL TERRAIN GENERATION (SIMPLEX NOISE SIMULATION) ---
-    function pseudoNoise(x, z) {
-      return Math.sin(x * 0.1) * Math.cos(z * 0.1) * 3 + Math.sin(x * 0.03 + z * 0.03) * 5;
-    }
-
-    function generateWorld() {
-      const WORLD_SIZE = 32;
-      const HALF_SIZE = WORLD_SIZE / 2;
-
-      for (let x = -HALF_SIZE; x < HALF_SIZE; x++) {
-        for (let z = -HALF_SIZE; z < HALF_SIZE; z++) {
-          const height = Math.floor(10 + pseudoNoise(x, z));
-
-          for (let y = 0; y <= height; y++) {
-            let blockType = 3; // Stone
-            if (y === height) blockType = 1; // Grass
-            else if (y > height - 3) blockType = 2; // Dirt
-
-            addBlock(x, y, z, blockType);
-          }
-
-          // Generate Trees randomly on grass
-          if (Math.random() < 0.015 && x > -HALF_SIZE + 3 && x < HALF_SIZE - 3 && z > -HALF_SIZE + 3 && z < HALF_SIZE - 3) {
-            const trunkHeight = 4 + Math.floor(Math.random() * 2);
-            // Trunk
-            for (let ty = 1; ty <= trunkHeight; ty++) {
-              addBlock(x, height + ty, z, 4); // Wood
+    <!-- Main Game Logic -->
+    <script>
+        // --- Web Audio Synthesizer ---
+        class SoundFX {
+            constructor() {
+                this.ctx = null;
+                this.muted = false;
             }
-            // Leaves
-            for (let lx = -2; lx <= 2; lx++) {
-              for (let lz = -2; lz <= 2; lz++) {
-                for (let ly = trunkHeight - 1; ly <= trunkHeight + 2; ly++) {
-                  if (Math.abs(lx) === 2 && Math.abs(lz) === 2 && Math.random() > 0.4) continue;
-                  if (lx === 0 && lz === 0 && ly <= trunkHeight) continue;
-                  addBlock(x + lx, height + ly, z + lz, 5); // Leaves
+
+            init() {
+                if (!this.ctx) {
+                    const AudioCtx = window.AudioContext || window.webkitAudioContext;
+                    if (AudioCtx) this.ctx = new AudioCtx();
                 }
-              }
+                if (this.ctx && this.ctx.state === 'suspended') {
+                    this.ctx.resume();
+                }
             }
-          }
+
+            playJump() {
+                if (this.muted || !this.ctx) return;
+                try {
+                    const osc = this.ctx.createOscillator();
+                    const gain = this.ctx.createGain();
+                    osc.type = 'sine';
+                    osc.frequency.setValueAtTime(350, this.ctx.currentTime);
+                    osc.frequency.exponentialRampToValueAtTime(750, this.ctx.currentTime + 0.12);
+                    
+                    gain.gain.setValueAtTime(0.25, this.ctx.currentTime);
+                    gain.gain.exponentialRampToValueAtTime(0.01, this.ctx.currentTime + 0.12);
+
+                    osc.connect(gain);
+                    gain.connect(this.ctx.destination);
+                    osc.start();
+                    osc.stop(this.ctx.currentTime + 0.12);
+                } catch(e){}
+            }
+
+            playScore() {
+                if (this.muted || !this.ctx) return;
+                try {
+                    const osc = this.ctx.createOscillator();
+                    const gain = this.ctx.createGain();
+                    osc.type = 'triangle';
+                    osc.frequency.setValueAtTime(523.25, this.ctx.currentTime); // C5
+                    osc.frequency.setValueAtTime(659.25, this.ctx.currentTime + 0.08); // E5
+
+                    gain.gain.setValueAtTime(0.2, this.ctx.currentTime);
+                    gain.gain.exponentialRampToValueAtTime(0.01, this.ctx.currentTime + 0.25);
+
+                    osc.connect(gain);
+                    gain.connect(this.ctx.destination);
+                    osc.start();
+                    osc.stop(this.ctx.currentTime + 0.25);
+                } catch(e){}
+            }
+
+            playHit() {
+                if (this.muted || !this.ctx) return;
+                try {
+                    const osc = this.ctx.createOscillator();
+                    const gain = this.ctx.createGain();
+                    osc.type = 'sawtooth';
+                    osc.frequency.setValueAtTime(160, this.ctx.currentTime);
+                    osc.frequency.exponentialRampToValueAtTime(40, this.ctx.currentTime + 0.2);
+
+                    gain.gain.setValueAtTime(0.35, this.ctx.currentTime);
+                    gain.gain.exponentialRampToValueAtTime(0.01, this.ctx.currentTime + 0.2);
+
+                    osc.connect(gain);
+                    gain.connect(this.ctx.destination);
+                    osc.start();
+                    osc.stop(this.ctx.currentTime + 0.2);
+                } catch(e){}
+            }
         }
-      }
-    }
 
-    generateWorld();
+        const audio = new SoundFX();
 
-    // Block Selection Highlight Frame
-    const highlightGeo = new THREE.BoxGeometry(1.01, 1.01, 1.01);
-    const highlightMat = new THREE.MeshBasicMaterial({ color: 0x000000, wireframe: true });
-    const highlightBox = new THREE.Mesh(highlightGeo, highlightMat);
-    highlightBox.visible = false;
-    scene.add(highlightBox);
+        // --- Sound Toggle Handlers ---
+        const soundBtn = document.getElementById('soundToggle');
+        const soundOnIcon = document.getElementById('soundIconOn');
+        const soundOffIcon = document.getElementById('soundIconOff');
 
-    // --- PLAYER PHYSICS & CONTROLS ---
-    const player = {
-      position: new THREE.Vector3(0, 20, 0),
-      velocity: new THREE.Vector3(0, 0, 0),
-      height: 1.7,
-      radius: 0.3,
-      onGround: false,
-      selectedSlot: 0,
-      isSprinting: false
-    };
+        soundBtn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            audio.muted = !audio.muted;
+            if (audio.muted) {
+                soundOnIcon.classList.add('hidden');
+                soundOffIcon.classList.remove('hidden');
+            } else {
+                soundOnIcon.classList.remove('hidden');
+                soundOffIcon.classList.add('hidden');
+                audio.init();
+            }
+        });
 
-    camera.position.copy(player.position);
+        // --- Fullscreen Handler ---
+        const container = document.getElementById('gameContainer');
+        const fsBtn = document.getElementById('fullscreenToggle');
+        const fsIconExpand = document.getElementById('fsIconExpand');
+        const fsIconCompress = document.getElementById('fsIconCompress');
 
-    const keys = {};
-    let isPointerLocked = false;
-    const startOverlay = document.getElementById('start-overlay');
-    const playBtn = document.getElementById('play-btn');
-    const posDisplay = document.getElementById('pos-display');
-    const fpsCounter = document.getElementById('fps-counter');
+        function toggleFullscreen() {
+            if (!document.fullscreenElement) {
+                if (container.requestFullscreen) {
+                    container.requestFullscreen();
+                } else if (container.webkitRequestFullscreen) {
+                    container.webkitRequestFullscreen();
+                }
+            } else {
+                if (document.exitFullscreen) {
+                    document.exitFullscreen();
+                } else if (document.webkitExitFullscreen) {
+                    document.webkitExitFullscreen();
+                }
+            }
+        }
 
-    // Pointer Lock
-    playBtn.addEventListener('click', () => {
-      audio.init();
-      renderer.domElement.requestPointerLock();
-    });
+        fsBtn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            toggleFullscreen();
+        });
 
-    document.addEventListener('pointerlockchange', () => {
-      if (document.pointerLockElement === renderer.domElement) {
-        isPointerLocked = true;
-        startOverlay.classList.add('hidden');
-      } else {
-        isPointerLocked = false;
-        startOverlay.classList.remove('hidden');
-      }
-    });
+        document.addEventListener('fullscreenchange', updateFullscreenIcons);
+        document.addEventListener('webkitfullscreenchange', updateFullscreenIcons);
 
-    // Mouse Look
-    let pitch = 0;
-    let yaw = 0;
+        function updateFullscreenIcons() {
+            const isFs = !!document.fullscreenElement || !!document.webkitFullscreenElement;
+            if (isFs) {
+                fsIconExpand.classList.add('hidden');
+                fsIconCompress.classList.remove('hidden');
+            } else {
+                fsIconExpand.classList.remove('hidden');
+                fsIconCompress.classList.add('hidden');
+            }
+            resizeCanvas();
+        }
 
-    document.addEventListener('mousemove', (e) => {
-      if (!isPointerLocked) return;
-      const sensitivity = 0.002;
-      yaw -= e.movementX * sensitivity;
-      pitch -= e.movementY * sensitivity;
+        // --- Canvas Setup & Responsive Resizing ---
+        const canvas = document.getElementById('gameCanvas');
+        const ctx = canvas.getContext('2d');
 
-      pitch = Math.max(-Math.PI / 2 + 0.01, Math.min(Math.PI / 2 - 0.01, pitch));
+        const GAME_WIDTH = 400;
+        const GAME_HEIGHT = 600;
 
-      camera.rotation.order = 'YXZ';
-      camera.rotation.x = pitch;
-      camera.rotation.y = yaw;
-    });
+        function resizeCanvas() {
+            const windowWidth = window.innerWidth;
+            const windowHeight = window.innerHeight;
+            
+            // Calculate scale ratio preserving 2:3 aspect ratio
+            const scale = Math.min(windowWidth / GAME_WIDTH, windowHeight / GAME_HEIGHT);
 
-    // Keyboard Events
-    document.addEventListener('keydown', (e) => {
-      keys[e.code] = true;
-      if (e.code >= 'Digit1' && e.code <= 'Digit6') {
-        setSlot(parseInt(e.code.replace('Digit', '')) - 1);
-      }
-      if (e.code === 'ShiftLeft' || e.code === 'ShiftRight') {
-        player.isSprinting = true;
-      }
-    });
+            canvas.style.width = `${Math.floor(GAME_WIDTH * scale)}px`;
+            canvas.style.height = `${Math.floor(GAME_HEIGHT * scale)}px`;
+        }
 
-    document.addEventListener('keyup', (e) => {
-      keys[e.code] = false;
-      if (e.code === 'ShiftLeft' || e.code === 'ShiftRight') {
-        player.isSprinting = false;
-      }
-    });
+        window.addEventListener('resize', resizeCanvas);
 
-    // Scroll Hotbar Selection
-    window.addEventListener('wheel', (e) => {
-      if (e.deltaY > 0) setSlot((player.selectedSlot + 1) % 6);
-      else setSlot((player.selectedSlot + 5) % 6);
-    });
+        // RoundRect Polyfill for Canvas
+        if (!CanvasRenderingContext2D.prototype.roundRect) {
+            CanvasRenderingContext2D.prototype.roundRect = function (x, y, w, h, r) {
+                if (w < 2 * r) r = w / 2;
+                if (h < 2 * r) r = h / 2;
+                this.beginPath();
+                this.moveTo(x + r, y);
+                this.arcTo(x + w, y, x + w, y + h, r);
+                this.arcTo(x + w, y + h, x, y + h, r);
+                this.arcTo(x, y + h, x, y, r);
+                this.arcTo(x, y, x + w, y, r);
+                this.closePath();
+                return this;
+            };
+        }
 
-    function setSlot(index) {
-      player.selectedSlot = index;
-      document.querySelectorAll('.mc-slot').forEach((el, i) => {
-        if (i === index) el.classList.add('active');
-        else el.classList.remove('active');
-      });
-    }
-
-    document.querySelectorAll('.mc-slot').forEach((el, i) => {
-      el.addEventListener('click', () => setSlot(i));
-    });
-
-    // --- RAYCASTING FOR MINING / PLACING ---
-    const raycaster = new THREE.Raycaster();
-    raycaster.far = 6;
-
-    let targetBlock = null;
-    let placeTargetPosition = null;
-
-    function updateRaycast() {
-      raycaster.setFromCamera(new THREE.Vector2(0, 0), camera);
-      const intersects = raycaster.intersectObjects(scene.children);
-
-      const blockHits = intersects.filter(hit => hit.object !== highlightBox);
-
-      if (blockHits.length > 0) {
-        const hit = blockHits[0];
-        const point = hit.point.clone().sub(hit.face.normal.clone().multiplyScalar(0.01));
-        const bx = Math.floor(point.x);
-        const by = Math.floor(point.y);
-        const bz = Math.floor(point.z);
-
-        targetBlock = { x: bx, y: by, z: bz };
-        highlightBox.position.set(bx + 0.5, by + 0.5, bz + 0.5);
-        highlightBox.visible = true;
-
-        const placePoint = hit.point.clone().add(hit.face.normal.clone().multiplyScalar(0.01));
-        placeTargetPosition = {
-          x: Math.floor(placePoint.x),
-          y: Math.floor(placePoint.y),
-          z: Math.floor(placePoint.z)
+        // --- Game States & Scores ---
+        const STATE = {
+            START: 0,
+            PLAYING: 1,
+            GAMEOVER: 2
         };
-      } else {
-        targetBlock = null;
-        placeTargetPosition = null;
-        highlightBox.visible = false;
-      }
-    }
+        let currentState = STATE.START;
 
-    // Mouse Clicks for Mining / Placing
-    window.addEventListener('mousedown', (e) => {
-      if (!isPointerLocked) return;
-      audio.init();
+        let highScore = 0;
+        try {
+            highScore = localStorage.getItem('fb_high_score') ? parseInt(localStorage.getItem('fb_high_score')) : 0;
+        } catch(e){}
 
-      if (e.button === 0) { // Left click -> Mine
-        if (targetBlock) {
-          removeBlock(targetBlock.x, targetBlock.y, targetBlock.z);
-        }
-      } else if (e.button === 2) { // Right click -> Place
-        if (placeTargetPosition) {
-          // Prevent placing block inside player's body
-          const pBox = getPlayerBoundingBox(player.position);
-          const blockBox = new THREE.Box3(
-            new THREE.Vector3(placeTargetPosition.x, placeTargetPosition.y, placeTargetPosition.z),
-            new THREE.Vector3(placeTargetPosition.x + 1, placeTargetPosition.y + 1, placeTargetPosition.z + 1)
-          );
+        let score = 0;
+        let shakeTime = 0;
 
-          if (!pBox.intersectsBox(blockBox)) {
-            addBlock(placeTargetPosition.x, placeTargetPosition.y, placeTargetPosition.z, BLOCKS[player.selectedSlot].id, true);
-          }
-        }
-      }
-    });
+        // Background / Foreground Scroll Speed
+        let bgOffset = 0;
+        let fgOffset = 0;
+        const bgSpeed = 0.5;
+        const fgSpeed = 2.0;
 
-    document.addEventListener('contextmenu', e => e.preventDefault());
+        // --- Game Entities ---
+        const bird = {
+            x: 80,
+            y: 280,
+            width: 36,
+            height: 26,
+            gravity: 0.45,
+            lift: -8.0,
+            velocity: 0,
+            rotation: 0,
+            wingFrame: 0,
+            wingTimer: 0,
+            particles: [],
 
-    // --- PHYSICS & COLLISION DETECTION (AABB) ---
-    function getPlayerBoundingBox(pos) {
-      return new THREE.Box3(
-        new THREE.Vector3(pos.x - player.radius, pos.y - player.height + 0.1, pos.z - player.radius),
-        new THREE.Vector3(pos.x + player.radius, pos.y + 0.1, pos.z + player.radius)
-      );
-    }
+            reset() {
+                this.y = 280;
+                this.velocity = 0;
+                this.rotation = 0;
+                this.particles = [];
+            },
 
-    function checkVoxelCollision(pos) {
-      const playerBox = getPlayerBoundingBox(pos);
+            flap() {
+                this.velocity = this.lift;
+                audio.playJump();
 
-      const minX = Math.floor(playerBox.min.x);
-      const maxX = Math.floor(playerBox.max.x);
-      const minY = Math.floor(playerBox.min.y);
-      const maxY = Math.floor(playerBox.max.y);
-      const minZ = Math.floor(playerBox.min.z);
-      const maxZ = Math.floor(playerBox.max.z);
+                // Particle FX on Jump
+                for (let i = 0; i < 4; i++) {
+                    this.particles.push({
+                        x: this.x - 6,
+                        y: this.y + 6,
+                        vx: (Math.random() - 0.5) * 3 - 1,
+                        vy: (Math.random() - 0.5) * 3 + 1,
+                        size: Math.random() * 4 + 2,
+                        alpha: 1
+                    });
+                }
+            },
 
-      for (let x = minX; x <= maxX; x++) {
-        for (let y = minY; y <= maxY; y++) {
-          for (let z = minZ; z <= maxZ; z++) {
-            if (worldBlocks.has(getBlockKey(x, y, z))) {
-              return true;
+            update() {
+                this.velocity += this.gravity;
+                this.y += this.velocity;
+
+                // Smooth Rotation
+                const targetRotation = Math.min(Math.PI / 4, Math.max(-Math.PI / 6, (this.velocity / 12)));
+                this.rotation += (targetRotation - this.rotation) * 0.2;
+
+                // Wing Animation
+                this.wingTimer += 0.2;
+                this.wingFrame = Math.sin(this.wingTimer);
+
+                // Particles update
+                for (let i = this.particles.length - 1; i >= 0; i--) {
+                    const p = this.particles[i];
+                    p.x += p.vx;
+                    p.y += p.vy;
+                    p.alpha -= 0.04;
+                    if (p.alpha <= 0) {
+                        this.particles.splice(i, 1);
+                    }
+                }
+            },
+
+            draw() {
+                // Particles
+                ctx.save();
+                this.particles.forEach(p => {
+                    ctx.fillStyle = `rgba(255, 255, 255, ${p.alpha})`;
+                    ctx.beginPath();
+                    ctx.arc(p.x, p.y, p.size, 0, Math.PI * 2);
+                    ctx.fill();
+                });
+                ctx.restore();
+
+                // Bird Body
+                ctx.save();
+                ctx.translate(this.x, this.y);
+                ctx.rotate(this.rotation);
+
+                // Body Gradient
+                const bodyGrad = ctx.createLinearGradient(-18, -13, 18, 13);
+                bodyGrad.addColorStop(0, '#facc15');
+                bodyGrad.addColorStop(1, '#eab308');
+
+                ctx.fillStyle = bodyGrad;
+                ctx.beginPath();
+                ctx.ellipse(0, 0, 18, 13, 0, 0, Math.PI * 2);
+                ctx.fill();
+
+                // Belly Highlight
+                ctx.fillStyle = '#fef08a';
+                ctx.beginPath();
+                ctx.ellipse(-2, 3, 11, 7, 0.2, 0, Math.PI * 2);
+                ctx.fill();
+
+                // Eyes
+                ctx.fillStyle = '#ffffff';
+                ctx.beginPath();
+                ctx.arc(7, -5, 6, 0, Math.PI * 2);
+                ctx.fill();
+
+                ctx.fillStyle = '#0f172a';
+                ctx.beginPath();
+                ctx.arc(9, -5, 3, 0, Math.PI * 2);
+                ctx.fill();
+
+                // Beak
+                const beakGrad = ctx.createLinearGradient(10, 0, 22, 5);
+                beakGrad.addColorStop(0, '#f97316');
+                beakGrad.addColorStop(1, '#ea580c');
+                ctx.fillStyle = beakGrad;
+                ctx.beginPath();
+                ctx.moveTo(10, 0);
+                ctx.lineTo(22, 3);
+                ctx.lineTo(10, 8);
+                ctx.closePath();
+                ctx.fill();
+
+                // Wing
+                ctx.fillStyle = '#ca8a04';
+                ctx.beginPath();
+                const wingYOffset = this.wingFrame * 4;
+                ctx.ellipse(-6, 2 + wingYOffset, 8, 5, -0.2, 0, Math.PI * 2);
+                ctx.fill();
+
+                ctx.restore();
             }
-          }
+        };
+
+        // --- Pipes ---
+        const pipes = {
+            list: [],
+            width: 64,
+            gap: 150,
+            spawnTimer: 0,
+            spawnInterval: 100,
+
+            reset() {
+                this.list = [];
+                this.spawnTimer = 0;
+            },
+
+            update() {
+                this.spawnTimer++;
+                if (this.spawnTimer >= this.spawnInterval) {
+                    this.spawnTimer = 0;
+
+                    const minHeight = 60;
+                    const maxHeight = GAME_HEIGHT - 120 - this.gap - minHeight;
+                    const topHeight = Math.floor(Math.random() * (maxHeight - minHeight + 1)) + minHeight;
+
+                    this.list.push({
+                        x: GAME_WIDTH,
+                        top: topHeight,
+                        bottom: GAME_HEIGHT - 120 - (topHeight + this.gap),
+                        passed: false
+                    });
+                }
+
+                for (let i = this.list.length - 1; i >= 0; i--) {
+                    const p = this.list[i];
+                    p.x -= fgSpeed;
+
+                    // Pass Check
+                    if (!p.passed && p.x + this.width < bird.x) {
+                        p.passed = true;
+                        score++;
+                        audio.playScore();
+                        if (score > highScore) {
+                            highScore = score;
+                            try {
+                                localStorage.setItem('fb_high_score', highScore);
+                            } catch(e){}
+                        }
+                    }
+
+                    // Remove offscreen
+                    if (p.x + this.width < -10) {
+                        this.list.splice(i, 1);
+                    }
+                }
+            },
+
+            draw() {
+                this.list.forEach(p => {
+                    const pipeGrad = ctx.createLinearGradient(p.x, 0, p.x + this.width, 0);
+                    pipeGrad.addColorStop(0, '#22c55e');
+                    pipeGrad.addColorStop(0.3, '#4ade80');
+                    pipeGrad.addColorStop(0.7, '#16a34a');
+                    pipeGrad.addColorStop(1, '#15803d');
+
+                    // Top Pipe
+                    ctx.fillStyle = pipeGrad;
+                    ctx.fillRect(p.x, 0, this.width, p.top);
+                    ctx.fillRect(p.x - 4, p.top - 24, this.width + 8, 24);
+                    
+                    // Top Cap Details
+                    ctx.fillStyle = 'rgba(255,255,255,0.2)';
+                    ctx.fillRect(p.x - 4, p.top - 24, this.width + 8, 4);
+                    ctx.fillStyle = 'rgba(0,0,0,0.25)';
+                    ctx.fillRect(p.x - 4, p.top - 4, this.width + 8, 4);
+
+                    // Bottom Pipe
+                    const bottomY = GAME_HEIGHT - 120 - p.bottom;
+                    ctx.fillStyle = pipeGrad;
+                    ctx.fillRect(p.x, bottomY, this.width, p.bottom);
+                    ctx.fillRect(p.x - 4, bottomY, this.width + 8, 24);
+
+                    // Bottom Cap Details
+                    ctx.fillStyle = 'rgba(255,255,255,0.2)';
+                    ctx.fillRect(p.x - 4, bottomY, this.width + 8, 4);
+                    ctx.fillStyle = 'rgba(0,0,0,0.25)';
+                    ctx.fillRect(p.x - 4, bottomY + 20, this.width + 8, 4);
+                });
+            }
+        };
+
+        // --- Collision System ---
+        function checkCollisions() {
+            const groundY = GAME_HEIGHT - 120;
+
+            // Ground
+            if (bird.y + bird.height / 2 >= groundY) {
+                triggerGameOver();
+                return;
+            }
+
+            // Ceiling
+            if (bird.y - bird.height / 2 <= 0) {
+                bird.y = bird.height / 2;
+                bird.velocity = 0;
+            }
+
+            // Pipes Collision
+            const bLeft = bird.x - 14;
+            const bRight = bird.x + 14;
+            const bTop = bird.y - 10;
+            const bBottom = bird.y + 10;
+
+            for (let i = 0; i < pipes.list.length; i++) {
+                const p = pipes.list[i];
+                const pLeft = p.x;
+                const pRight = p.x + pipes.width;
+                const pTopEnd = p.top;
+                const pBottomStart = GAME_HEIGHT - 120 - p.bottom;
+
+                if (bRight > pLeft && bLeft < pRight) {
+                    if (bTop < pTopEnd || bBottom > pBottomStart) {
+                        triggerGameOver();
+                        return;
+                    }
+                }
+            }
         }
-      }
-      return false;
-    }
 
-    // Footstep Sound Tracker
-    let stepDistance = 0;
-
-    function updatePhysics(delta) {
-      const gravity = 24.0;
-      const speed = player.isSprinting ? 7.5 : 4.8;
-      const jumpSpeed = 8.5;
-
-      // Apply Gravity
-      player.velocity.y -= gravity * delta;
-
-      // Direction vectors
-      const moveDir = new THREE.Vector3(0, 0, 0);
-      if (keys['KeyW']) moveDir.z -= 1;
-      if (keys['KeyS']) moveDir.z += 1;
-      if (keys['KeyA']) moveDir.x -= 1;
-      if (keys['KeyD']) moveDir.x += 1;
-
-      // Mobile Joystick Integration
-      if (mobileMoveVector.lengthSq() > 0) {
-        moveDir.x = mobileMoveVector.x;
-        moveDir.z = mobileMoveVector.y;
-      }
-
-      moveDir.normalize();
-
-      // Transform to camera angle
-      const forward = new THREE.Vector3(0, 0, -1).applyAxisAngle(new THREE.Vector3(0, 1, 0), yaw);
-      const side = new THREE.Vector3(1, 0, 0).applyAxisAngle(new THREE.Vector3(0, 1, 0), yaw);
-
-      const horizontalVel = new THREE.Vector3()
-        .addScaledVector(forward, -moveDir.z * speed)
-        .addScaledVector(side, moveDir.x * speed);
-
-      // Jump Logic
-      if ((keys['Space'] || mobileJump) && player.onGround) {
-        player.velocity.y = jumpSpeed;
-        player.onGround = false;
-        mobileJump = false;
-        audio.playStep();
-      }
-
-      // X Movement & Collision
-      player.position.x += horizontalVel.x * delta;
-      if (checkVoxelCollision(player.position)) {
-        player.position.x -= horizontalVel.x * delta;
-      }
-
-      // Z Movement & Collision
-      player.position.z += horizontalVel.z * delta;
-      if (checkVoxelCollision(player.position)) {
-        player.position.z -= horizontalVel.z * delta;
-      }
-
-      // Y Movement & Collision
-      player.position.y += player.velocity.y * delta;
-      if (checkVoxelCollision(player.position)) {
-        if (player.velocity.y < 0) {
-          player.onGround = true;
+        function triggerGameOver() {
+            shakeTime = 15;
+            audio.playHit();
+            currentState = STATE.GAMEOVER;
         }
-        player.position.y -= player.velocity.y * delta;
-        player.velocity.y = 0;
-      } else {
-        player.onGround = false;
-      }
 
-      // Play Footstep Sounds
-      if (player.onGround && horizontalVel.lengthSq() > 0.1) {
-        stepDistance += horizontalVel.length() * delta;
-        if (stepDistance > 2.2) {
-          audio.playStep();
-          stepDistance = 0;
+        // --- Parallax Background & Ground ---
+        function drawBackground() {
+            // Sky Gradient
+            const skyGrad = ctx.createLinearGradient(0, 0, 0, GAME_HEIGHT - 120);
+            skyGrad.addColorStop(0, '#0284c7');
+            skyGrad.addColorStop(0.7, '#38bdf8');
+            skyGrad.addColorStop(1, '#bae6fd');
+            ctx.fillStyle = skyGrad;
+            ctx.fillRect(0, 0, GAME_WIDTH, GAME_HEIGHT - 120);
+
+            // Parallax Clouds
+            bgOffset = (bgOffset + bgSpeed) % GAME_WIDTH;
+            ctx.fillStyle = 'rgba(255, 255, 255, 0.45)';
+
+            for (let i = -1; i < 2; i++) {
+                const cx = i * GAME_WIDTH - bgOffset;
+                ctx.beginPath();
+                ctx.arc(cx + 80, 360, 50, 0, Math.PI * 2);
+                ctx.arc(cx + 130, 340, 70, 0, Math.PI * 2);
+                ctx.arc(cx + 190, 360, 50, 0, Math.PI * 2);
+                ctx.fill();
+
+                ctx.beginPath();
+                ctx.arc(cx + 300, 200, 30, 0, Math.PI * 2);
+                ctx.arc(cx + 330, 190, 45, 0, Math.PI * 2);
+                ctx.arc(cx + 370, 200, 35, 0, Math.PI * 2);
+                ctx.fill();
+            }
         }
-      }
 
-      // Update Camera Position
-      camera.position.copy(player.position);
+        function drawForeground() {
+            const groundY = GAME_HEIGHT - 120;
 
-      // Update UI Pos Display
-      posDisplay.textContent = `X: ${Math.floor(player.position.x)}, Y: ${Math.floor(player.position.y)}, Z: ${Math.floor(player.position.z)}`;
-    }
+            // Grass Header
+            ctx.fillStyle = '#4ade80';
+            ctx.fillRect(0, groundY, GAME_WIDTH, 14);
+            ctx.fillStyle = '#22c55e';
+            ctx.fillRect(0, groundY + 14, GAME_WIDTH, 6);
 
-    // --- MOBILE TOUCH CONTROLS HANDLING ---
-    const mobileControls = document.getElementById('mobile-controls');
-    const joystickZone = document.getElementById('joystick-zone');
-    const joystickKnob = document.getElementById('joystick-knob');
-    const btnJump = document.getElementById('btn-jump');
-    const btnMine = document.getElementById('btn-mine');
-    const btnPlace = document.getElementById('btn-place');
+            // Dirt Body
+            const dirtGrad = ctx.createLinearGradient(0, groundY + 20, 0, GAME_HEIGHT);
+            dirtGrad.addColorStop(0, '#eab308');
+            dirtGrad.addColorStop(1, '#ca8a04');
+            ctx.fillStyle = dirtGrad;
+            ctx.fillRect(0, groundY + 20, GAME_WIDTH, 100);
 
-    let mobileMoveVector = new THREE.Vector2(0, 0);
-    let mobileJump = false;
+            // Dynamic Scrolling Pattern
+            if (currentState !== STATE.GAMEOVER) {
+                fgOffset = (fgOffset + fgSpeed) % 30;
+            }
 
-    // Detect Touch Device
-    if ('ontouchstart' in window || navigator.maxTouchPoints > 0) {
-      mobileControls.classList.remove('hidden');
-    }
-
-    // Touch Look Handling
-    let touchLookId = null;
-    let lastTouchX = 0;
-    let lastTouchY = 0;
-
-    window.addEventListener('touchstart', (e) => {
-      audio.init();
-      for (let i = 0; i < e.changedTouches.length; i++) {
-        const touch = e.changedTouches[i];
-        if (touch.clientX > window.innerWidth / 2 && touchLookId === null) {
-          touchLookId = touch.identifier;
-          lastTouchX = touch.clientX;
-          lastTouchY = touch.clientY;
+            ctx.strokeStyle = 'rgba(161, 98, 7, 0.4)';
+            ctx.lineWidth = 4;
+            ctx.beginPath();
+            for (let x = -30 - fgOffset; x < GAME_WIDTH + 30; x += 30) {
+                ctx.moveTo(x, groundY + 20);
+                ctx.lineTo(x - 20, GAME_HEIGHT);
+            }
+            ctx.stroke();
         }
-      }
-    });
 
-    window.addEventListener('touchmove', (e) => {
-      for (let i = 0; i < e.changedTouches.length; i++) {
-        const touch = e.changedTouches[i];
-        if (touch.identifier === touchLookId) {
-          const dx = touch.clientX - lastTouchX;
-          const dy = touch.clientY - lastTouchY;
-          lastTouchX = touch.clientX;
-          lastTouchY = touch.clientY;
+        // --- Render UI Screens ---
+        function drawUI() {
+            if (currentState === STATE.START) {
+                ctx.save();
+                ctx.fillStyle = '#ffffff';
+                ctx.shadowColor = 'rgba(0,0,0,0.4)';
+                ctx.shadowBlur = 10;
+                ctx.shadowOffsetY = 4;
+                ctx.font = '36px "Fredoka One", cursive, sans-serif';
+                ctx.textAlign = 'center';
+                ctx.fillText('FLAPPY BIRD', GAME_WIDTH / 2, 160);
 
-          yaw -= dx * 0.005;
-          pitch -= dy * 0.005;
-          pitch = Math.max(-Math.PI / 2 + 0.01, Math.min(Math.PI / 2 - 0.01, pitch));
+                ctx.font = '20px "Nunito", sans-serif';
+                ctx.fillStyle = '#fef08a';
+                ctx.fillText('DELUXE EDITION', GAME_WIDTH / 2, 195);
 
-          camera.rotation.order = 'YXZ';
-          camera.rotation.x = pitch;
-          camera.rotation.y = yaw;
+                const bounce = Math.sin(Date.now() * 0.005) * 6;
+                ctx.fillStyle = '#ffffff';
+                ctx.font = 'bold 18px "Nunito", sans-serif';
+                ctx.fillText('Tap screen or Press Space', GAME_WIDTH / 2, 370 + bounce);
+
+                // Instructions Box
+                ctx.fillStyle = 'rgba(15, 23, 42, 0.6)';
+                ctx.roundRect(GAME_WIDTH / 2 - 120, 410, 240, 60, 12);
+                ctx.fill();
+
+                ctx.fillStyle = '#e2e8f0';
+                ctx.font = '14px "Nunito", sans-serif';
+                ctx.fillText('Avoid pipes & reach top scores!', GAME_WIDTH / 2, 433);
+                ctx.fillStyle = '#38bdf8';
+                ctx.fillText('Press "F" for Fullscreen', GAME_WIDTH / 2, 455);
+                ctx.restore();
+
+            } else if (currentState === STATE.PLAYING) {
+                ctx.save();
+                ctx.fillStyle = '#ffffff';
+                ctx.shadowColor = 'rgba(0,0,0,0.5)';
+                ctx.shadowBlur = 8;
+                ctx.shadowOffsetY = 3;
+                ctx.font = '48px "Fredoka One", cursive, sans-serif';
+                ctx.textAlign = 'center';
+                ctx.fillText(score, GAME_WIDTH / 2, 90);
+                ctx.restore();
+
+            } else if (currentState === STATE.GAMEOVER) {
+                ctx.save();
+                ctx.fillStyle = 'rgba(15, 23, 42, 0.45)';
+                ctx.fillRect(0, 0, GAME_WIDTH, GAME_HEIGHT);
+
+                const boxX = 40;
+                const boxY = 150;
+                const boxWidth = GAME_WIDTH - 80;
+                const boxHeight = 270;
+
+                ctx.fillStyle = '#1e293b';
+                ctx.shadowColor = 'rgba(0,0,0,0.6)';
+                ctx.shadowBlur = 25;
+                ctx.shadowOffsetY = 10;
+                ctx.roundRect(boxX, boxY, boxWidth, boxHeight, 24);
+                ctx.fill();
+
+                ctx.lineWidth = 3;
+                ctx.strokeStyle = '#334155';
+                ctx.stroke();
+
+                ctx.shadowBlur = 0;
+                ctx.fillStyle = '#ef4444';
+                ctx.font = '32px "Fredoka One", cursive, sans-serif';
+                ctx.textAlign = 'center';
+                ctx.fillText('GAME OVER', GAME_WIDTH / 2, boxY + 50);
+
+                ctx.fillStyle = '#94a3b8';
+                ctx.font = 'bold 14px "Nunito", sans-serif';
+                ctx.fillText('SCORE', GAME_WIDTH / 2 - 60, boxY + 100);
+                ctx.fillText('BEST', GAME_WIDTH / 2 + 60, boxY + 100);
+
+                ctx.fillStyle = '#ffffff';
+                ctx.font = '32px "Fredoka One", cursive, sans-serif';
+                ctx.fillText(score, GAME_WIDTH / 2 - 60, boxY + 140);
+                ctx.fillText(highScore, GAME_WIDTH / 2 + 60, boxY + 140);
+
+                // Medal Achievement
+                if (score >= 10) {
+                    let medalColor = '#cd7f32'; // Bronze
+                    if (score >= 40) medalColor = '#eab308'; // Gold
+                    else if (score >= 20) medalColor = '#94a3b8'; // Silver
+
+                    ctx.fillStyle = medalColor;
+                    ctx.beginPath();
+                    ctx.arc(GAME_WIDTH / 2, boxY + 175, 16, 0, Math.PI * 2);
+                    ctx.fill();
+
+                    ctx.fillStyle = '#ffffff';
+                    ctx.font = '12px "Fredoka One", cursive, sans-serif';
+                    ctx.fillText('★', GAME_WIDTH / 2, boxY + 179);
+                }
+
+                // Play Again Button Overlay
+                const btnY = boxY + 220;
+                ctx.fillStyle = '#22c55e';
+                ctx.roundRect(GAME_WIDTH / 2 - 80, btnY - 25, 160, 44, 22);
+                ctx.fill();
+
+                ctx.fillStyle = '#ffffff';
+                ctx.font = 'bold 16px "Nunito", sans-serif';
+                ctx.fillText('PLAY AGAIN', GAME_WIDTH / 2, btnY + 3);
+
+                ctx.restore();
+            }
         }
-      }
-    });
 
-    const resetTouchLook = (e) => {
-      for (let i = 0; i < e.changedTouches.length; i++) {
-        if (e.changedTouches[i].identifier === touchLookId) {
-          touchLookId = null;
+        // --- Main Game Loop ---
+        function gameLoop() {
+            ctx.clearRect(0, 0, GAME_WIDTH, GAME_HEIGHT);
+
+            ctx.save();
+            if (shakeTime > 0) {
+                const dx = (Math.random() - 0.5) * shakeTime;
+                const dy = (Math.random() - 0.5) * shakeTime;
+                ctx.translate(dx, dy);
+                shakeTime--;
+            }
+
+            // Updates
+            if (currentState === STATE.START) {
+                bird.wingTimer += 0.1;
+                bird.wingFrame = Math.sin(bird.wingTimer);
+                bird.y = 280 + Math.sin(Date.now() * 0.004) * 8;
+            } else if (currentState === STATE.PLAYING) {
+                bird.update();
+                pipes.update();
+                checkCollisions();
+            } else if (currentState === STATE.GAMEOVER) {
+                if (bird.y + bird.height / 2 < GAME_HEIGHT - 120) {
+                    bird.velocity += bird.gravity;
+                    bird.y += bird.velocity;
+                    bird.rotation = Math.min(Math.PI / 2, bird.rotation + 0.1);
+                }
+            }
+
+            // Rendering
+            drawBackground();
+            pipes.draw();
+            drawForeground();
+            bird.draw();
+            drawUI();
+
+            ctx.restore();
+
+            requestAnimationFrame(gameLoop);
         }
-      }
-    };
-    window.addEventListener('touchend', resetTouchLook);
-    window.addEventListener('touchcancel', resetTouchLook);
 
-    // Virtual Joystick logic
-    let joystickTouchId = null;
-    joystickZone.addEventListener('touchstart', (e) => {
-      e.preventDefault();
-      const touch = e.changedTouches[0];
-      joystickTouchId = touch.identifier;
-    });
+        // --- Control Handlers ---
+        function handleInput(e) {
+            if (e) e.preventDefault();
+            audio.init();
 
-    window.addEventListener('touchmove', (e) => {
-      if (joystickTouchId === null) return;
-      for (let i = 0; i < e.changedTouches.length; i++) {
-        const touch = e.changedTouches[i];
-        if (touch.identifier === joystickTouchId) {
-          const rect = joystickZone.getBoundingClientRect();
-          const centerX = rect.left + rect.width / 2;
-          const centerY = rect.top + rect.height / 2;
-
-          let dx = touch.clientX - centerX;
-          let dy = touch.clientY - centerY;
-          const dist = Math.min(Math.hypot(dx, dy), 40);
-          const angle = Math.atan2(dy, dx);
-
-          const knobX = Math.cos(angle) * dist;
-          const knobY = Math.sin(angle) * dist;
-          joystickKnob.style.transform = `translate(${knobX}px, ${knobY}px)`;
-
-          mobileMoveVector.set(knobX / 40, knobY / 40);
+            if (currentState === STATE.START) {
+                currentState = STATE.PLAYING;
+                score = 0;
+                bird.reset();
+                pipes.reset();
+                bird.flap();
+            } else if (currentState === STATE.PLAYING) {
+                bird.flap();
+            } else if (currentState === STATE.GAMEOVER && shakeTime === 0) {
+                currentState = STATE.START;
+                bird.reset();
+                pipes.reset();
+            }
         }
-      }
-    });
 
-    const endJoystick = (e) => {
-      for (let i = 0; i < e.changedTouches.length; i++) {
-        if (e.changedTouches[i].identifier === joystickTouchId) {
-          joystickTouchId = null;
-          joystickKnob.style.transform = `translate(0px, 0px)`;
-          mobileMoveVector.set(0, 0);
-        }
-      }
-    };
-    window.addEventListener('touchend', endJoystick);
-    window.addEventListener('touchcancel', endJoystick);
+        // Keyboard & Touch Listeners
+        window.addEventListener('keydown', (e) => {
+            if (e.code === 'KeyF') {
+                toggleFullscreen();
+                return;
+            }
+            if (e.code === 'Space' || e.code === 'ArrowUp') {
+                handleInput(e);
+            }
+        });
 
-    btnJump.addEventListener('touchstart', (e) => { e.preventDefault(); mobileJump = true; });
-    btnMine.addEventListener('touchstart', (e) => {
-      e.preventDefault();
-      if (targetBlock) removeBlock(targetBlock.x, targetBlock.y, targetBlock.z);
-    });
-    btnPlace.addEventListener('touchstart', (e) => {
-      e.preventDefault();
-      if (placeTargetPosition) {
-        addBlock(placeTargetPosition.x, placeTargetPosition.y, placeTargetPosition.z, BLOCKS[player.selectedSlot].id, true);
-      }
-    });
+        canvas.addEventListener('pointerdown', (e) => {
+            handleInput(e);
+        });
 
-    // --- DAY/NIGHT SKY CYCLE & MAIN RENDER LOOP ---
-    let lastTime = performance.now();
-    let frameCount = 0;
-    let fpsTime = performance.now();
-    let skyAngle = 0;
-
-    function animate() {
-      requestAnimationFrame(animate);
-
-      const now = performance.now();
-      const delta = Math.min((now - lastTime) / 1000, 0.1);
-      lastTime = now;
-
-      // FPS Counter
-      frameCount++;
-      if (now - fpsTime >= 1000) {
-        fpsCounter.textContent = `${frameCount} FPS`;
-        frameCount = 0;
-        fpsTime = now;
-      }
-
-      // Day / Night Atmosphere Rotation
-      skyAngle += delta * 0.03;
-      dirLight.position.x = Math.cos(skyAngle) * 80;
-      dirLight.position.y = Math.sin(skyAngle) * 80;
-      dirLight.position.z = 40;
-
-      const skyBrightness = Math.max(0.1, Math.sin(skyAngle));
-      scene.background.setHSL(0.58, 0.6, 0.5 * skyBrightness);
-      scene.fog.color.setHSL(0.58, 0.6, 0.5 * skyBrightness);
-
-      // Physics & Raycast Update
-      updatePhysics(delta);
-      updateRaycast();
-
-      renderer.render(scene, camera);
-    }
-
-    // Window Resize Handler
-    window.addEventListener('resize', () => {
-      camera.aspect = window.innerWidth / window.innerHeight;
-      camera.updateProjectionMatrix();
-      renderer.setSize(window.innerWidth, window.innerHeight);
-    });
-
-    // Start Loop
-    animate();
-  </script>
+        // Initialize Loop on Window Load
+        window.onload = function () {
+            resizeCanvas();
+            gameLoop();
+        };
+    </script>
 </body>
 </html>
-```
